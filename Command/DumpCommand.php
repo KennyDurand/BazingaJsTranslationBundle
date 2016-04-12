@@ -5,6 +5,7 @@ namespace Bazinga\Bundle\JsTranslationBundle\Command;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Output\Output;
 
@@ -14,6 +15,7 @@ use Symfony\Component\Console\Output\Output;
 class DumpCommand extends ContainerAwareCommand
 {
     private $targetPath;
+    private $skipDomains;
 
     /**
      * {@inheritDoc}
@@ -22,13 +24,19 @@ class DumpCommand extends ContainerAwareCommand
     {
         $this
             ->setName('bazinga:js-translation:dump')
-            ->setDefinition(array(
+            ->setDefinition([
                 new InputArgument(
                     'target',
                     InputArgument::OPTIONAL,
-                    'Override the target directory to dump JS translation files in.'
+                    'Override the target file to dump JS translation files in.'
                 ),
-            ))
+                new InputOption(
+                    'skip-domains',
+                    'skip',
+                    InputOption::VALUE_IS_ARRAY | InputOption::VALUE_OPTIONAL,
+                    'Skips the specified domains.'
+                )
+            ])
             ->setDescription('Dumps all JS translation files to the filesystem');
     }
 
@@ -40,7 +48,8 @@ class DumpCommand extends ContainerAwareCommand
         parent::initialize($input, $output);
 
         $this->targetPath = $input->getArgument('target') ?:
-            sprintf('%s/../web/js', $this->getContainer()->getParameter('kernel.root_dir'));
+            sprintf('%s/../web/js/translations.js', $this->getContainer()->getParameter('kernel.root_dir'));
+        $this->skipDomains = $input->getOption('skip-domains') ?: [];
     }
 
     /**
@@ -56,13 +65,13 @@ class DumpCommand extends ContainerAwareCommand
         }
 
         $output->writeln(sprintf(
-            'Installing translation files in <comment>%s</comment> directory',
+            'Dumping translations in <comment>%s</comment>',
             $this->targetPath
         ));
 
         $this
             ->getContainer()
             ->get('bazinga.jstranslation.translation_dumper')
-            ->dump($this->targetPath);
+            ->dump($this->targetPath, $this->skipDomains);
     }
 }

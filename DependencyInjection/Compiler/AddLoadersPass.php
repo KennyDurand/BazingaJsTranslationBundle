@@ -13,10 +13,6 @@ class AddLoadersPass implements CompilerPassInterface
 {
     public function process(ContainerBuilder $container)
     {
-        if (!$container->hasDefinition('bazinga.jstranslation.controller')) {
-            return;
-        }
-
         foreach ($container->findTaggedServiceIds('translation.loader') as $loaderId => $attributes) {
             $attributes = array_shift($attributes);
 
@@ -30,10 +26,6 @@ class AddLoadersPass implements CompilerPassInterface
 
     private function registerLoader(ContainerBuilder $container, $alias, $loaderId)
     {
-        $container
-            ->getDefinition('bazinga.jstranslation.controller')
-            ->addMethodCall('addLoader', array($alias, new Reference($loaderId)));
-
         $container
             ->getDefinition('bazinga.jstranslation.translation_dumper')
             ->addMethodCall('addLoader', array($alias, new Reference($loaderId)));

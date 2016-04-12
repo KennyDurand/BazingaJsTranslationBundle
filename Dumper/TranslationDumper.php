@@ -118,86 +118,34 @@ class TranslationDumper
      * Dump all translation files.
      *
      * @param string $target Target directory.
+     * @param array $skipDomains Domains to skip.
      */
-    public function dump($target = 'web/js')
+    public function dump($target, $skipDomains = [])
     {
-        $route         = $this->router->getRouteCollection()->get('bazinga_jstranslation_js');
-        $requirements  = $route->getRequirements();
-        $formats       = explode('|', $requirements['_format']);
+        $translations = $this->getTranslations($skipDomains);
 
-        $routeDefaults = $route->getDefaults();
-        $defaultFormat = $routeDefaults['_format'];
+        $content = $this->engine->render('BazingaJsTranslationBundle::getTranslations.js.twig', array(
+            'translations'      => $translations,
+            'fallback'          => $this->localeFallback,
+            'defaultDomain'     => $this->defaultDomain,
+            'include_config'    => true,
+        ));
 
-        $parts = array_filter(explode('/', $route->getPath()));
-        $this->filesystem->remove($target. '/' . current($parts));
+        $this->filesystem->mkdir(dirname($target));
 
-        $this->dumpConfig($route, $formats, $target);
-        $this->dumpTranslations($route, $formats, $target);
-    }
-
-    private function dumpConfig($route, array $formats, $target)
-    {
-        foreach ($formats as $format) {
-            $file = sprintf('%s/%s',
-                $target,
-                strtr($route->getPath(), array(
-                    '{domain}'  => 'config',
-                    '{_format}' => $format
-                ))
-            );
-
-            $this->filesystem->mkdir(dirname($file));
-
-            if (file_exists($file)) {
-                $this->filesystem->remove($file);
-            }
-
-            file_put_contents(
-                $file,
-                $this->engine->render('BazingaJsTranslationBundle::config.' . $format . '.twig', array(
-                    'fallback'      => $this->localeFallback,
-                    'defaultDomain' => $this->defaultDomain,
-                ))
-            );
+        if (file_exists($target)) {
+            $this->filesystem->remove($target);
         }
-    }
 
-    private function dumpTranslations($route, array $formats, $target)
-    {
-        foreach ($this->getTranslations() as $locale => $domains) {
-            foreach ($domains as $domain => $translations) {
-                foreach ($formats as $format) {
-                    $content = $this->engine->render('BazingaJsTranslationBundle::getTranslations.' . $format . '.twig', array(
-                        'translations'   => array($locale => array(
-                            $domain => $translations,
-                        )),
-                        'include_config' => false,
-                    ));
-
-                    $file = sprintf('%s/%s',
-                        $target,
-                        strtr($route->getPath(), array(
-                            '{domain}'  => sprintf('%s/%s', $domain, $locale),
-                            '{_format}' => $format
-                        ))
-                    );
-
-                    $this->filesystem->mkdir(dirname($file));
-
-                    if (file_exists($file)) {
-                        $this->filesystem->remove($file);
-                    }
-
-                    file_put_contents($file, $content);
-                }
-            }
-        }
+        file_put_contents($target, $content);
     }
 
     /**
+     * @param array $skipDomains Domains to skip.
+     *
      * @return array
      */
-    private function getTranslations()
+    private function getTranslations(array $skipDomains)
     {
         $translations = array();
         $activeLocales = $this->activeLocales;
@@ -206,6 +154,10 @@ class TranslationDumper
             list($extension, $locale, $domain) = $this->getFileInfo($file);
 
             if ( (count($activeLocales) > 0 && !in_array($locale, $activeLocales)) || (count($activeDomains) > 0 && !in_array($domain, $activeDomains)) ) {
+                continue;
+            }
+
+            if (in_array($domain, $skipDomains)) {
                 continue;
             }
 
